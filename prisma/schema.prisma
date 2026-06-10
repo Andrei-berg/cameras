@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model District {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  objects   Object[]
+  users     User[]
+  createdAt DateTime @default(now())
+}
+
+model Object {
+  id             String   @id @default(cuid())
+  name           String
+  structureType  String
+  program        String
+  district       District @relation(fields: [districtId], references: [id])
+  districtId     String
+  isCommissioned Boolean  @default(true)
+  cameras        Camera[]
+  createdAt      DateTime @default(now())
+}
+
+model Camera {
+  id               String     @id @default(cuid())
+  object           Object     @relation(fields: [objectId], references: [id])
+  objectId         String
+  cameraNumber     Int
+  ipAddress        String?
+  model            String?
+  lat              Float?
+  lng              Float?
+  isWorking        Boolean    @default(true)
+  lastStatusChange DateTime?
+  incidents        Incident[]
+  createdAt        DateTime   @default(now())
+}
+
+model User {
+  id            String     @id @default(cuid())
+  name          String                          // Better Auth requires 'name'; maps to fullName concept
+  email         String     @unique             // Better Auth primary identifier; replaces 'username'
+  emailVerified Boolean    @default(false)
+  image         String?
+  role          String     @default("dispatcher")
+  districtId    String?
+  district      District?  @relation(fields: [districtId], references: [id])
+  incidents     Incident[]
+  sessions      Session[]
+  accounts      Account[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt          // Better Auth requires updatedAt
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+  @@map("verification")
+}
+
+model Incident {
+  id               String    @id @default(cuid())
+  camera           Camera    @relation(fields: [cameraId], references: [id])
+  cameraId         String
+  reportedBy       User      @relation(fields: [reportedById], references: [id])
+  reportedById     String
+  dispatcherReason String?
+  specialistReason String?
+  detectedAt       DateTime  @default(now())
+  specialistVisit  DateTime?
+  resolvedAt       DateTime?
+  repairNeeded     String?
+  notes            String?
+  contractor       String?
+  state            String    @default("open")
+  createdAt        DateTime  @default(now())
+}
+
+model DailySnapshot {
+  id           String   @id @default(cuid())
+  snapshotDate DateTime @unique
+  total        Int
+  working      Int
+  notWorking   Int
+  inRepair     Int
+  byDistrict   Json
+  byProgram    Json
+  createdAt    DateTime @default(now())
+}
