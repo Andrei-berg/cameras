@@ -10,12 +10,13 @@ const items = [
   { href: "/map", label: "Карта", disabled: true },
 ];
 
-export default function DashboardNav() {
+export default function DashboardNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
+  const visible = isAdmin ? [...items, { href: "/admin", label: "Админ" }] : items;
 
   return (
     <nav className="flex items-center gap-1">
-      {items.map((item) =>
+      {visible.map((item) =>
         item.disabled ? (
           <span
             key={item.href}

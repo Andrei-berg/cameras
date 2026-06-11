@@ -29,7 +29,7 @@ export default async function DashboardLayout({
               мониторинг камер
             </span>
           </div>
-          <DashboardNav />
+          <DashboardNav isAdmin={session.user.role === "admin"} />
         </div>
         <div className="flex items-center gap-4">
           <span className="text-sm text-ink-soft">{session.user.name}</span>
