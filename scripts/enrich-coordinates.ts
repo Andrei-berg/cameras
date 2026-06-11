@@ -321,9 +321,17 @@ async function main() {
   let unmatched = 0;
   let fullEnriched = 0;
   let coordsOnly = 0;
+  let looseObjects = 0;
+  let looseCameras = 0;
   const usedKsvdIds = new Set<string>();
   const ambiguousList: string[] = [];
   const unmatchedList: string[] = [];
+  const LOOSE = process.argv.includes("--loose");
+  type Unresolved = {
+    obj: (typeof objects)[number];
+    scored: { g: AddrGroup; s: number }[];
+  };
+  const unresolved: Unresolved[] = [];
 
   for (const obj of objects) {
     const objStems = stems(obj.name);
@@ -344,6 +352,7 @@ async function main() {
       unmatchedList.push(`${obj.name} [${obj.program}, ${obj.district.name}]`);
       continue;
     }
+    void unresolved; // используется ниже в ambiguous-ветке
 
     // Все группы с максимальным счётом: если их точки в пределах 500 м —
     // это одно сооружение с по-разному записанным адресом, сливаем
@@ -360,6 +369,7 @@ async function main() {
         ambiguousList.push(
           `${obj.name} → score ${bestScore}: ${top.map((g) => g.key).join(" / ").slice(0, 90)}`
         );
+        unresolved.push({ obj, scored });
         continue;
       }
       best = mergeGroups(top);
@@ -420,8 +430,41 @@ async function main() {
     }
   }
 
+  // ── Мягкий проход (--loose): спорные объекты получают ТОЛЬКО координаты ──
+  // Правила: равные кандидаты в пределах 3 км — слить (пин на карте всё равно
+  // попадёт в правильное место); явный лидер (+4 очка) — взять его центроид.
+  if (LOOSE) {
+    for (const { obj, scored } of unresolved) {
+      const top = Math.max(...scored.map((x) => x.s));
+      const tops = scored.filter((x) => x.s === top).map((x) => x.g);
+      const second = Math.max(0, ...scored.filter((x) => x.s < top).map((x) => x.s));
+
+      let pick: AddrGroup | null = null;
+      const within3km = !tops.some((a) =>
+        tops.some((b) => distMeters(a.centroid, b.centroid) > 3000)
+      );
+      if (tops.length > 1 && within3km) pick = mergeGroups(tops);
+      else if (tops.length === 1 && top - second >= 4) pick = tops[0];
+
+      if (!pick) continue;
+      looseObjects++;
+      for (const cam of obj.cameras) {
+        if (!DRY_RUN) {
+          await prisma.camera.update({
+            where: { id: cam.id },
+            data: { lat: pick.centroid.lat, lng: pick.centroid.lng },
+          });
+        }
+        looseCameras++;
+      }
+    }
+  }
+
   console.log(`${"═".repeat(64)}`);
   console.log(`  Объекты:  ${matched} сматчено, ${ambiguous} неоднозначно, ${unmatched} без пары`);
+  if (LOOSE) {
+    console.log(`  Loose:    +${looseObjects} объектов (${looseCameras} камер, только координаты)`);
+  }
   console.log(`  Камеры:   ${fullEnriched} полное обогащение (ksvd+координаты)`);
   console.log(`            ${coordsOnly} только координаты (центроид адреса)`);
   console.log(`${"═".repeat(64)}\n`);
