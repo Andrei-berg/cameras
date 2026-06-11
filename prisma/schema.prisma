@@ -26,6 +26,8 @@ model Object {
   isCommissioned Boolean  @default(true)
   cameras        Camera[]
   createdAt      DateTime @default(now())
+
+  @@unique([name, districtId])
 }
 
 model Camera {
@@ -33,12 +35,20 @@ model Camera {
   object           Object     @relation(fields: [objectId], references: [id])
   objectId         String
   cameraNumber     Int
-  ipAddress        String?
+  ddpGroup         String?    // ДДП-1..ДДП-8 или название группы Интеллект
+  controllerIp     String?    // IP контроллера (один контроллер = объект в KSVD)
+  port             Int?       // номер канала на контроллере
+  ipAddress        String?    // прямой IP камеры (если отличается от контроллера)
   model            String?
   lat              Float?
   lng              Float?
   isWorking        Boolean    @default(true)
   lastStatusChange DateTime?
+  // Технические данные из KSVD
+  ksvdId           String?    @unique // UUID из реестра KSVD
+  ksvdKey          String?            // числовой ключ Ключ камеры
+  ksvdName         String?            // имя вида GRMST_SVAO_60_198_4
+  rtspUrl          String?
   incidents        Incident[]
   createdAt        DateTime   @default(now())
 }
