@@ -1,7 +1,11 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import StatusBadge from "@/components/StatusBadge";
+import IncidentStateBadge from "@/components/IncidentStateBadge";
+import { createIncidentAction } from "../../incidents/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -22,18 +26,14 @@ function TechRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-const incidentStates: Record<string, { label: string; cls: string }> = {
-  open: { label: "Открыт", cls: "bg-fail-soft text-fail" },
-  in_repair: { label: "В ремонте", cls: "bg-warn-soft text-warn" },
-  resolved: { label: "Закрыт", cls: "bg-ok-soft text-ok" },
-};
-
 export default async function CameraPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const session = await auth.api.getSession({ headers: await headers() });
+  const canReport = ["dispatcher", "engineer", "admin"].includes(session?.user.role ?? "");
 
   const camera = await prisma.camera.findUnique({
     where: { id },
@@ -80,6 +80,24 @@ export default async function CameraPage({
         </div>
       </div>
 
+      {canReport && camera.isWorking && (
+        <form
+          action={createIncidentAction}
+          className="bg-surface border border-line rounded-lg p-4 flex gap-2 items-start"
+        >
+          <input type="hidden" name="cameraId" value={camera.id} />
+          <input
+            name="reason"
+            required
+            placeholder="Что случилось? (нет сигнала, разбита, помехи…)"
+            className="flex-1 px-3 py-2 text-sm border border-line rounded focus:outline-none focus:border-accent"
+          />
+          <button className="px-4 py-2 text-sm font-medium text-white bg-fail rounded hover:opacity-90 whitespace-nowrap">
+            Зарегистрировать инцидент
+          </button>
+        </form>
+      )}
+
       <div className="grid md:grid-cols-2 gap-4">
         <section className="bg-surface border border-line rounded-lg p-5">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-soft mb-3">
@@ -123,17 +141,12 @@ export default async function CameraPage({
           ) : (
             <ul className="space-y-3">
               {camera.incidents.map((inc) => {
-                const st =
-                  incidentStates[inc.state] ?? {
-                    label: inc.state,
-                    cls: "bg-canvas text-ink-soft",
-                  };
                 return (
                   <li key={inc.id} className="border-l-2 border-line-strong pl-3">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>
-                        {st.label}
-                      </span>
+                      <Link href={`/incidents/${inc.id}`}>
+                        <IncidentStateBadge state={inc.state} />
+                      </Link>
                       <span className="text-xs font-mono text-ink-faint">
                         {dateFmt.format(inc.detectedAt)}
                       </span>
