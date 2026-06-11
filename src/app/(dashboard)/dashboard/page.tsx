@@ -10,17 +10,46 @@ const dateFmt = new Intl.DateTimeFormat("ru-RU", {
   day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
 });
 
+function Donut({ working, total }: { working: number; total: number }) {
+  const pct = total ? working / total : 0;
+  const C = 2 * Math.PI * 54;
+  return (
+    <div className="relative size-44 shrink-0">
+      <svg viewBox="0 0 128 128" className="size-44 -rotate-90">
+        <circle cx="64" cy="64" r="54" fill="none" stroke="var(--color-fail-soft)" strokeWidth="14" />
+        <circle
+          cx="64" cy="64" r="54" fill="none"
+          stroke="var(--color-ok)" strokeWidth="14" strokeLinecap="round"
+          strokeDasharray={`${C * pct} ${C}`}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-3xl font-semibold font-mono">{Math.round(pct * 100)}%</span>
+        <span className="text-xs text-ink-soft">в работе</span>
+      </div>
+    </div>
+  );
+}
+
+/** Цвет плитки участка: зелёный (всё работает) → красный (всё сломано) */
+function tileStyle(share: number) {
+  const hue = Math.round(120 * share);
+  return {
+    background: `hsl(${hue} 55% 94%)`,
+    borderColor: `hsl(${hue} 45% 70%)`,
+    color: `hsl(${hue} 70% 24%)`,
+  };
+}
+
 export default async function DashboardPage() {
   const session = await auth.api.getSession({ headers: await headers() });
   const role = session?.user.role ?? "dispatcher";
   const showIncidents = ["dispatcher", "engineer", "admin"].includes(role);
-  const showDistricts = ["manager", "admin"].includes(role);
 
-  const [total, broken, districts, openIncidents, inRepair, recentOpen, worstDistricts] =
+  const [total, broken, openIncidents, inRepair, recentOpen, districts] =
     await Promise.all([
       prisma.camera.count(),
       prisma.camera.count({ where: { isWorking: false } }),
-      prisma.district.count(),
       prisma.incident.count({ where: { state: "open" } }),
       prisma.incident.count({ where: { state: "in_repair" } }),
       showIncidents
@@ -28,68 +57,58 @@ export default async function DashboardPage() {
             where: { state: role === "engineer" ? { in: ["open", "in_repair"] } : "open" },
             include: { camera: { include: { object: true } } },
             orderBy: { detectedAt: "desc" },
-            take: 6,
+            take: 7,
           })
         : Promise.resolve([]),
-      showDistricts
-        ? prisma.$queryRaw<{ name: string; total: number; broken: number }[]>`
-            SELECT d.name, count(*)::int AS total,
-                   (count(*) FILTER (WHERE NOT c."isWorking"))::int AS broken
-            FROM "Camera" c
-            JOIN "Object" o ON o.id = c."objectId"
-            JOIN "District" d ON d.id = o."districtId"
-            GROUP BY d.name
-            ORDER BY (count(*) FILTER (WHERE NOT c."isWorking"))::float / count(*) DESC
-            LIMIT 5`
-        : Promise.resolve([]),
+      prisma.$queryRaw<{ id: string; name: string; total: number; broken: number }[]>`
+        SELECT d.id, d.name, count(c.id)::int AS total,
+               (count(c.id) FILTER (WHERE NOT c."isWorking"))::int AS broken
+        FROM "District" d
+        JOIN "Object" o ON o."districtId" = d.id
+        JOIN "Camera" c ON c."objectId" = o.id
+        GROUP BY d.id, d.name
+        ORDER BY (count(c.id) FILTER (WHERE NOT c."isWorking"))::float / count(c.id) DESC`,
     ]);
   const working = total - broken;
 
-  const cards = [
-    { label: "Камер всего", value: total, href: "/cameras", accent: "text-ink" },
-    { label: "В работе", value: working, href: "/cameras?status=working", accent: "text-ok" },
-    { label: "Не работает", value: broken, href: "/cameras?status=broken", accent: "text-fail" },
+  const stats = [
+    { label: "Камер всего", value: total, href: "/cameras", cls: "border-l-accent" },
+    { label: "В работе", value: working, href: "/cameras?status=working", cls: "border-l-ok text-ok" },
+    { label: "Не работает", value: broken, href: "/cameras?status=broken", cls: "border-l-fail text-fail" },
     role === "engineer"
-      ? { label: "В ремонте", value: inRepair, href: "/incidents?state=in_repair", accent: "text-warn" }
-      : { label: "Открытых инцидентов", value: openIncidents, href: "/incidents?state=open", accent: "text-warn" },
+      ? { label: "В ремонте", value: inRepair, href: "/incidents?state=in_repair", cls: "border-l-warn text-warn" }
+      : { label: "Открытых инцидентов", value: openIncidents, href: "/incidents?state=open", cls: "border-l-warn text-warn" },
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold">Оперативная сводка</h1>
-        <p className="text-sm text-ink-soft">
-          {districts} участков · мониторинг видеокамер ГБУ «ГОРМОСТ»
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {cards.map((c) => (
-          <Link
-            key={c.label}
-            href={c.href}
-            className="bg-surface border border-line rounded-lg p-5 hover:border-accent transition-colors"
-          >
-            <p className={`text-3xl font-semibold font-mono ${c.accent}`}>
-              {c.value.toLocaleString("ru-RU")}
-            </p>
-            <p className="text-sm text-ink-soft mt-1">{c.label}</p>
-          </Link>
-        ))}
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-4 items-start">
+    <div className="space-y-5">
+      <div className="bg-surface border border-line rounded-lg p-6 flex flex-wrap items-center gap-8">
+        <Donut working={working} total={total} />
+        <div className="flex-1 grid grid-cols-2 gap-3 min-w-64">
+          {stats.map((s) => (
+            <Link
+              key={s.label}
+              href={s.href}
+              className={`border border-line border-l-4 rounded-lg px-4 py-3 hover:border-accent transition-colors bg-canvas/40 ${s.cls}`}
+            >
+              <span className="block text-2xl font-semibold font-mono">
+                {s.value.toLocaleString("ru-RU")}
+              </span>
+              <span className="text-xs text-ink-soft">{s.label}</span>
+            </Link>
+          ))}
+        </div>
         {showIncidents && (
-          <section className="bg-surface border border-line rounded-lg p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-soft">
+          <div className="flex-1 min-w-72">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-soft">
                 {role === "engineer" ? "Инциденты в работе" : "Последние инциденты"}
               </h2>
               <Link href="/incidents?state=open" className="text-xs text-accent hover:underline">
                 все →
               </Link>
             </div>
-            <ul className="space-y-2">
+            <ul className="space-y-1.5">
               {recentOpen.map((inc) => (
                 <li key={inc.id} className="flex items-center gap-2 text-sm">
                   <IncidentStateBadge state={inc.state} />
@@ -108,49 +127,39 @@ export default async function DashboardPage() {
                 <p className="text-sm text-ink-faint py-2">Открытых инцидентов нет</p>
               )}
             </ul>
-          </section>
-        )}
-
-        {showDistricts && (
-          <section className="bg-surface border border-line rounded-lg p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-soft">
-                Проблемные участки
-              </h2>
-              <Link href="/reports" className="text-xs text-accent hover:underline">
-                отчёты →
-              </Link>
-            </div>
-            <ul className="space-y-2">
-              {worstDistricts.map((d) => (
-                <li key={d.name} className="flex items-center gap-3 text-sm">
-                  <span className="flex-1 truncate">{d.name}</span>
-                  <span className="font-mono text-xs">
-                    <span className="text-fail">{d.broken}</span>
-                    <span className="text-ink-soft"> / {d.total}</span>
-                  </span>
-                  <span className="font-mono text-xs w-10 text-right text-ink-soft">
-                    {Math.round(((d.total - d.broken) / d.total) * 100)}%
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        <section className="bg-surface border border-line rounded-lg p-5 lg:col-span-2">
-          <div className="flex justify-between text-sm mb-2">
-            <span className="text-ink-soft">Доля работающих камер</span>
-            <span className="font-mono">{total ? Math.round((working / total) * 100) : 0}%</span>
           </div>
-          <div className="h-2 rounded-full bg-fail-soft overflow-hidden">
-            <div
-              className="h-full bg-ok rounded-full"
-              style={{ width: `${total ? (working / total) * 100 : 0}%` }}
-            />
-          </div>
-        </section>
+        )}
       </div>
+
+      <section>
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-2">
+          Участки · доля работающих камер
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2">
+          {districts.map((d) => {
+            const share = d.total ? (d.total - d.broken) / d.total : 1;
+            return (
+              <Link
+                key={d.id}
+                href={`/cameras?district=${d.id}&status=broken`}
+                className="border rounded-lg p-3 hover:scale-[1.03] transition-transform"
+                style={tileStyle(share)}
+                title={`${d.name}: не работает ${d.broken} из ${d.total}`}
+              >
+                <span className="block text-lg font-semibold font-mono">
+                  {Math.round(share * 100)}%
+                </span>
+                <span className="block text-[11px] leading-tight truncate opacity-80">
+                  {d.name}
+                </span>
+                <span className="block text-[10px] font-mono opacity-60">
+                  {d.broken} / {d.total}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }

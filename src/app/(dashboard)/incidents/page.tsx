@@ -10,7 +10,7 @@ const dateFmt = new Intl.DateTimeFormat("ru-RU", {
   day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit",
 });
 
-type SP = { state?: string; q?: string; page?: string };
+type SP = { state?: string; q?: string; district?: string; page?: string };
 
 function href(sp: SP, patch: Partial<SP>) {
   const p = new URLSearchParams();
@@ -30,13 +30,13 @@ export default async function IncidentsPage({
 
   const where: Prisma.IncidentWhereInput = {};
   if (sp.state) where.state = sp.state;
-  if (sp.q?.trim()) {
-    where.camera = {
-      object: { name: { contains: sp.q.trim(), mode: "insensitive" } },
-    };
-  }
+  const objFilter: Prisma.ObjectWhereInput = {};
+  if (sp.q?.trim()) objFilter.name = { contains: sp.q.trim(), mode: "insensitive" };
+  if (sp.district) objFilter.districtId = sp.district;
+  if (Object.keys(objFilter).length) where.camera = { object: objFilter };
 
-  const [counts, total, incidents] = await Promise.all([
+  const [districts, counts, total, incidents] = await Promise.all([
+    prisma.district.findMany({ orderBy: { name: "asc" } }),
     prisma.incident.groupBy({ by: ["state"], _count: true }),
     prisma.incident.count({ where }),
     prisma.incident.findMany({
@@ -94,6 +94,18 @@ export default async function IncidentsPage({
             placeholder="Поиск по объекту…"
             className="flex-1 px-3 py-1.5 text-sm bg-surface border border-line rounded focus:outline-none focus:border-accent"
           />
+          <select
+            name="district"
+            defaultValue={sp.district ?? ""}
+            className="px-2 py-1.5 text-sm border border-line rounded bg-surface"
+          >
+            <option value="">Все участки</option>
+            {districts.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
           <button className="px-3 py-1.5 text-sm border border-line bg-surface rounded hover:border-accent">
             Найти
           </button>

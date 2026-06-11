@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { ROLES } from "@/lib/roles";
 import { createUserAction, updateUserAction } from "./actions";
+import ImportForm from "@/components/ImportForm";
 
 export const dynamic = "force-dynamic";
 
@@ -92,6 +93,17 @@ export default async function AdminPage({
           {sp.ok}
         </div>
       )}
+
+      <section className="bg-surface border border-line rounded-lg p-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-soft mb-1">
+          Импорт операционного реестра
+        </h2>
+        <p className="text-xs text-ink-soft mb-3">
+          Лист «Реестр» (.xlsx/.xlsm): обновит статусы камер, создаст инциденты по
+          сломавшимся и закроет по починившимся. Новые объекты не создаёт.
+        </p>
+        <ImportForm />
+      </section>
 
       <section className="bg-surface border border-line rounded-lg p-4">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-soft mb-3">
