@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { isRole } from "@/lib/roles";
+import { createUserWithPassword } from "@/lib/create-user";
 
 async function requireAdmin() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -54,15 +55,16 @@ export async function createUserAction(formData: FormData) {
   }
 
   try {
-    await auth.api.signUpEmail({ body: { name, email, password } });
+    await createUserWithPassword({
+      name,
+      email,
+      password,
+      role,
+      districtId: districtId || null,
+    });
   } catch {
     fail("Не удалось создать пользователя — возможно, email уже занят");
   }
-
-  await prisma.user.update({
-    where: { email },
-    data: { role, districtId: districtId || null },
-  });
 
   revalidatePath("/admin");
   redirect("/admin?ok=Пользователь создан");

@@ -18,6 +18,7 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
+    disableSignUp: true, // публичная регистрация закрыта — пользователей создаёт админ
     minPasswordLength: 8,
     requireEmailVerification: false,
     revokeSessionsOnPasswordReset: true,
