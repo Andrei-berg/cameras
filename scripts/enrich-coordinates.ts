@@ -43,7 +43,7 @@ const prisma = new PrismaClient({ adapter } as never);
 function cellStr(v: ExcelJS.CellValue): string {
   if (v == null) return "";
   if (typeof v === "object") {
-    const o = v as Record<string, unknown>;
+    const o = v as unknown as Record<string, unknown>;
     if (Array.isArray(o.richText)) {
       return (o.richText as { text: string }[]).map((t) => t.text).join("").trim();
     }
