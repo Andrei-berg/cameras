@@ -8,6 +8,7 @@ const items = [
   { href: "/cameras", label: "Камеры" },
   { href: "/incidents", label: "Инциденты" },
   { href: "/map", label: "Карта" },
+  { href: "/reports", label: "Отчёты" },
 ];
 
 export default function DashboardNav({ isAdmin = false }: { isAdmin?: boolean }) {
