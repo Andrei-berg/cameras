@@ -1,26 +1,36 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@theme {
+  --font-sans: var(--font-golos), "Segoe UI", system-ui, sans-serif;
+  --font-mono: var(--font-jb-mono), "Consolas", monospace;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Индустриальная палитра диспетчерской: сталь + сигнальные цвета */
+  --color-canvas: #edf0f3;
+  --color-surface: #ffffff;
+  --color-ink: #18222e;
+  --color-ink-soft: #5b6877;
+  --color-ink-faint: #8b96a3;
+  --color-line: #d6dde4;
+  --color-line-strong: #b9c3cd;
+  --color-accent: #0e5fa8;
+  --color-accent-deep: #0a4a84;
+  --color-ok: #15803d;
+  --color-ok-soft: #e3f3e9;
+  --color-fail: #c2333b;
+  --color-fail-soft: #fbe9ea;
+  --color-warn: #a16207;
+  --color-warn-soft: #fdf3df;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Тонкая техническая сетка на фоне — атмосфера диспетчерского пульта */
+.canvas-grid {
+  background-image: linear-gradient(var(--color-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-line) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
