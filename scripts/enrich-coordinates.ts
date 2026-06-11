@@ -350,9 +350,9 @@ async function main() {
     if (bestScore === 0) {
       unmatched++;
       unmatchedList.push(`${obj.name} [${obj.program}, ${obj.district.name}]`);
+      unresolved.push({ obj, scored });
       continue;
     }
-    void unresolved; // используется ниже в ambiguous-ветке
 
     // Все группы с максимальным счётом: если их точки в пределах 500 м —
     // это одно сооружение с по-разному записанным адресом, сливаем
@@ -458,6 +458,28 @@ async function main() {
         looseCameras++;
       }
     }
+  }
+
+  // ── --candidates: JSON с кандидатами для UI ручной разметки (/admin/geo) ──
+  if (process.argv.includes("--candidates")) {
+    const fs = await import("fs");
+    const out = unresolved.map(({ obj, scored }) => ({
+      objectId: obj.id,
+      name: obj.name,
+      district: obj.district.name,
+      cameras: obj.cameras.length,
+      candidates: scored
+        .sort((a, b) => b.s - a.s)
+        .slice(0, 4)
+        .map((x) => ({
+          key: x.g.key,
+          score: x.s,
+          lat: +x.g.centroid.lat.toFixed(6),
+          lng: +x.g.centroid.lng.toFixed(6),
+        })),
+    }));
+    fs.writeFileSync("src/data/geo-candidates.json", JSON.stringify(out, null, 1));
+    console.log(`\n📝 src/data/geo-candidates.json: ${out.length} объектов`);
   }
 
   console.log(`${"═".repeat(64)}`);

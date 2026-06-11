@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -76,11 +77,19 @@ export default async function AdminPage({
 
   return (
     <div className="space-y-4 max-w-5xl">
-      <div>
-        <h1 className="text-xl font-semibold">Администрирование</h1>
-        <p className="text-sm text-ink-soft">
-          Пользователи системы и их роли · {users.length} чел.
-        </p>
+      <div className="flex items-end justify-between flex-wrap gap-2">
+        <div>
+          <h1 className="text-xl font-semibold">Администрирование</h1>
+          <p className="text-sm text-ink-soft">
+            Пользователи системы и их роли · {users.length} чел.
+          </p>
+        </div>
+        <Link
+          href="/admin/geo"
+          className="px-3 py-1.5 text-sm border border-line bg-surface rounded hover:border-accent transition-colors"
+        >
+          📍 Разметка координат
+        </Link>
       </div>
 
       {sp.error && (
