@@ -167,6 +167,13 @@ export default async function CamerasPage({
             Сбросить
           </Link>
         )}
+        <a
+          href={pageHref(sp, 1).replace("/cameras", "/api/export/cameras")}
+          className="px-3 py-1.5 text-sm border border-line rounded text-ink-soft hover:border-accent hover:text-ink transition-colors"
+          title="Скачать текущую выборку в Excel"
+        >
+          ⬇ Excel
+        </a>
       </form>
 
       <div className="bg-surface border border-line rounded-lg overflow-hidden">

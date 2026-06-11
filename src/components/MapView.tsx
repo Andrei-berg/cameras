@@ -1,25 +1,27 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import type { MapObject } from "@/app/(dashboard)/map/page";
 
-/* ymaps3 загружается с CDN Яндекса (по требованиям лицензии — не через npm) */
+/* Yandex Maps JavaScript API 2.1 (ключ пользователя выдан для v2.1, не v3).
+   Грузится с CDN Яндекса по требованиям лицензии. Кластеризация — ObjectManager. */
 declare global {
   interface Window {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ymaps3: any;
+    ymaps: any;
   }
 }
 
 let loader: Promise<void> | null = null;
 function loadYmaps(apiKey: string): Promise<void> {
-  if (window.ymaps3) return window.ymaps3.ready;
+  if (window.ymaps?.ready) {
+    return new Promise((r) => window.ymaps.ready(r));
+  }
   if (!loader) {
     loader = new Promise<void>((resolve, reject) => {
       const s = document.createElement("script");
-      s.src = `https://api-maps.yandex.ru/v3/?apikey=${apiKey}&lang=ru_RU`;
-      s.onload = () => window.ymaps3.ready.then(resolve);
+      s.src = `https://api-maps.yandex.ru/2.1/?apikey=${apiKey}&lang=ru_RU`;
+      s.onload = () => window.ymaps.ready(() => resolve());
       s.onerror = () => reject(new Error("Не удалось загрузить Yandex Maps"));
       document.head.appendChild(s);
     });
@@ -35,7 +37,6 @@ export default function MapView({
   apiKey: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const router = useRouter();
 
   useEffect(() => {
     let map: { destroy: () => void } | null = null;
@@ -43,46 +44,53 @@ export default function MapView({
 
     loadYmaps(apiKey).then(() => {
       if (cancelled || !ref.current) return;
-      const ymaps3 = window.ymaps3;
-      const {
-        YMap,
-        YMapDefaultSchemeLayer,
-        YMapDefaultFeaturesLayer,
-        YMapMarker,
-      } = ymaps3;
+      const ymaps = window.ymaps;
 
-      map = new YMap(ref.current, {
-        location: { center: [37.62, 55.75], zoom: 10 },
+      map = new ymaps.Map(ref.current, {
+        center: [55.75, 37.62],
+        zoom: 10,
+        controls: ["zoomControl", "searchControl"],
       });
-      const m = map as InstanceType<typeof YMap>;
-      m.addChild(new YMapDefaultSchemeLayer({}));
-      m.addChild(new YMapDefaultFeaturesLayer({}));
 
-      for (const o of objects) {
-        const el = document.createElement("button");
-        el.title = `${o.name}\n${o.district}\nкамер: ${o.total}, не работает: ${o.broken}`;
-        el.style.cssText = `
-          transform: translate(-50%, -50%);
-          min-width: 22px; height: 22px; padding: 0 4px;
-          border-radius: 11px; border: 2px solid #fff;
-          background: ${o.broken > 0 ? "#c2333b" : "#15803d"};
-          color: #fff; font: 600 10px/18px var(--font-jb-mono), monospace;
-          cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,.35);
-        `;
-        el.textContent = o.broken > 0 ? String(o.broken) : "";
-        el.onclick = () =>
-          router.push(`/cameras?q=${encodeURIComponent(o.name.slice(0, 40))}`);
-        m.addChild(
-          new YMapMarker({ coordinates: [o.lng, o.lat], zIndex: o.broken > 0 ? 2 : 1 }, el)
-        );
-      }
+      const om = new ymaps.ObjectManager({
+        clusterize: true,
+        gridSize: 96,
+        clusterIconLayout: "default.imageWithContent",
+      });
+      om.objects.options.set("preset", "islands#greenDotIcon");
+      om.clusters.options.set("preset", "islands#invertedDarkBlueClusterIcons");
+
+      om.add(
+        objects.map((o) => ({
+          type: "Feature",
+          id: o.id,
+          geometry: { type: "Point", coordinates: [o.lat, o.lng] },
+          properties: {
+            iconContent: o.broken > 0 ? String(o.broken) : undefined,
+            hintContent: `${o.name} — камер: ${o.total}, не работает: ${o.broken}`,
+            balloonContentHeader: o.name,
+            balloonContentBody: `
+              <div style="font: 13px/1.5 sans-serif">
+                ${o.district}<br/>
+                Камер: <b>${o.total}</b> · не работает: <b style="color:#c2333b">${o.broken}</b><br/>
+                <a href="/cameras?q=${encodeURIComponent(o.name.slice(0, 40))}">Открыть в реестре →</a>
+              </div>`,
+          },
+          options:
+            o.broken > 0
+              ? { preset: "islands#redCircleIcon" }
+              : { preset: "islands#greenDotIcon" },
+        }))
+      );
+
+      (map as unknown as { geoObjects: { add: (o: unknown) => void } }).geoObjects.add(om);
     });
 
     return () => {
       cancelled = true;
       map?.destroy();
     };
-  }, [objects, apiKey, router]);
+  }, [objects, apiKey]);
 
   return (
     <div

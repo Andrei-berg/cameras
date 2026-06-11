@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import SignOutButton from "@/components/SignOutButton";
 import DashboardNav from "@/components/DashboardNav";
+import CommandPalette from "@/components/CommandPalette";
 
 export default async function DashboardLayout({
   children,
@@ -32,10 +33,14 @@ export default async function DashboardLayout({
           <DashboardNav isAdmin={session.user.role === "admin"} />
         </div>
         <div className="flex items-center gap-4">
+          <span className="hidden md:inline text-xs text-ink-faint border border-line rounded px-1.5 py-0.5 font-mono">
+            Ctrl K
+          </span>
           <span className="text-sm text-ink-soft">{session.user.name}</span>
           <SignOutButton />
         </div>
       </header>
+      <CommandPalette isAdmin={session.user.role === "admin"} />
       <main className="p-6 max-w-screen-2xl mx-auto">{children}</main>
     </div>
   );
