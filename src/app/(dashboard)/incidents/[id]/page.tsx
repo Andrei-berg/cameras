@@ -7,6 +7,7 @@ import IncidentStateBadge from "@/components/IncidentStateBadge";
 import StatusBadge from "@/components/StatusBadge";
 import { markVisitAction, resolveIncidentAction } from "../actions";
 import IncidentPrint from "@/components/IncidentPrint";
+import { actionLabel } from "@/lib/action-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -32,13 +33,20 @@ export default async function IncidentPage({
   const session = await auth.api.getSession({ headers: await headers() });
   const canWork = ["engineer", "admin"].includes(session?.user.role ?? "");
 
-  const inc = await prisma.incident.findUnique({
-    where: { id },
-    include: {
-      camera: { include: { object: { include: { district: true } } } },
-      reportedBy: { select: { name: true } },
-    },
-  });
+  const [inc, history] = await Promise.all([
+    prisma.incident.findUnique({
+      where: { id },
+      include: {
+        camera: { include: { object: { include: { district: true } } } },
+        reportedBy: { select: { name: true } },
+      },
+    }),
+    prisma.actionLog.findMany({
+      where: { entityType: "incident", entityId: id },
+      include: { user: { select: { name: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
   if (!inc) notFound();
 
   return (
@@ -92,6 +100,25 @@ export default async function IncidentPage({
         <Row label="Устранён" value={inc.resolvedAt && dateFmt.format(inc.resolvedAt)} />
         <Row label="Примечание" value={inc.notes} />
       </div>
+
+      {history.length > 0 && (
+        <section className="bg-surface border border-line rounded-lg p-5">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-soft mb-3">
+            История действий
+          </h2>
+          <ul className="space-y-2">
+            {history.map((h) => (
+              <li key={h.id} className="flex items-baseline gap-3 text-sm">
+                <span className="font-mono text-xs text-ink-faint whitespace-nowrap">
+                  {dateFmt.format(h.createdAt)}
+                </span>
+                <span>{actionLabel(h.action)}</span>
+                <span className="text-xs text-ink-soft ml-auto">{h.user.name}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {canWork && inc.state === "open" && (
         <form action={markVisitAction} className="bg-surface border border-line rounded-lg p-5 space-y-3">

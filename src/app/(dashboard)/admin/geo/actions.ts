@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { logAction } from "@/lib/log-action";
 
 /** Назначает координаты всем камерам объекта (ручная разметка карты) */
 export async function setObjectCoordsAction(formData: FormData) {
@@ -23,6 +24,13 @@ export async function setObjectCoordsAction(formData: FormData) {
   await prisma.camera.updateMany({
     where: { objectId },
     data: { lat, lng },
+  });
+  await logAction({
+    userId: session.user.id,
+    action: "object.set_coords",
+    entityType: "object",
+    entityId: objectId,
+    details: { lat, lng },
   });
 
   revalidatePath("/admin/geo");

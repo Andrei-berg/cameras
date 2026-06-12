@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import ExcelJS from "exceljs";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { logAction } from "@/lib/log-action";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -109,6 +110,13 @@ export async function POST(req: NextRequest) {
       }),
     ]);
   }
+
+  await logAction({
+    userId: session.user.id,
+    action: "registry.import",
+    entityType: "registry",
+    details: { file: file.name, ...stats },
+  });
 
   return NextResponse.json({ ok: true, ...stats });
 }

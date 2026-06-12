@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { isRole } from "@/lib/roles";
 import { createUserWithPassword } from "@/lib/create-user";
+import { logAction } from "@/lib/log-action";
 
 async function requireAdmin() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -36,13 +37,20 @@ export async function updateUserAction(formData: FormData) {
     where: { id },
     data: { role, districtId: districtId || null },
   });
+  await logAction({
+    userId: session.user.id,
+    action: "user.update",
+    entityType: "user",
+    entityId: id,
+    details: { role, districtId: districtId || null },
+  });
 
   revalidatePath("/admin");
   redirect("/admin?ok=Сохранено");
 }
 
 export async function createUserAction(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -54,17 +62,26 @@ export async function createUserAction(formData: FormData) {
     fail("Заполните имя, email и пароль (минимум 8 символов)");
   }
 
+  let createdId = "";
   try {
-    await createUserWithPassword({
+    const u = await createUserWithPassword({
       name,
       email,
       password,
       role,
       districtId: districtId || null,
     });
+    createdId = u.id;
   } catch {
     fail("Не удалось создать пользователя — возможно, email уже занят");
   }
+  await logAction({
+    userId: session.user.id,
+    action: "user.create",
+    entityType: "user",
+    entityId: createdId,
+    details: { email, role },
+  });
 
   revalidatePath("/admin");
   redirect("/admin?ok=Пользователь создан");

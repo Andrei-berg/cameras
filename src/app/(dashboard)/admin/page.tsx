@@ -84,12 +84,20 @@ export default async function AdminPage({
             Пользователи системы и их роли · {users.length} чел.
           </p>
         </div>
-        <Link
-          href="/admin/geo"
-          className="px-3 py-1.5 text-sm border border-line bg-surface rounded hover:border-accent transition-colors"
-        >
-          📍 Разметка координат
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/admin/geo"
+            className="px-3 py-1.5 text-sm border border-line bg-surface rounded hover:border-accent transition-colors"
+          >
+            📍 Разметка координат
+          </Link>
+          <Link
+            href="/admin/log"
+            className="px-3 py-1.5 text-sm border border-line bg-surface rounded hover:border-accent transition-colors"
+          >
+            Журнал действий
+          </Link>
+        </div>
       </div>
 
       {sp.error && (

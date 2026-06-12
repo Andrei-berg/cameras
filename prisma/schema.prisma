@@ -63,6 +63,7 @@ model User {
   districtId    String?
   district      District?  @relation(fields: [districtId], references: [id])
   incidents     Incident[]
+  actionLogs    ActionLog[]
   sessions      Session[]
   accounts      Account[]
   createdAt     DateTime   @default(now())
@@ -127,6 +128,20 @@ model Incident {
   contractor       String?
   state            String    @default("open")
   createdAt        DateTime  @default(now())
+}
+
+model ActionLog {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  action     String   // incident.create / incident.resolve / user.update / registry.import …
+  entityType String   // incident | camera | user | object | registry
+  entityId   String?
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }
 
 model DailySnapshot {

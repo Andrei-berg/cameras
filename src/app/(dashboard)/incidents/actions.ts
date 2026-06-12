@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { logAction } from "@/lib/log-action";
 
 async function requireRole(roles: string[]) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -35,6 +36,13 @@ export async function createIncidentAction(formData: FormData) {
     return inc;
   });
 
+  await logAction({
+    userId: session.user.id,
+    action: "incident.create",
+    entityType: "incident",
+    entityId: incident.id,
+    details: { cameraId, reason },
+  });
   revalidatePath(`/cameras/${cameraId}`);
   revalidatePath("/incidents");
   redirect(`/incidents/${incident.id}`);
@@ -42,7 +50,7 @@ export async function createIncidentAction(formData: FormData) {
 
 /** Инженер отмечает выезд и диагноз */
 export async function markVisitAction(formData: FormData) {
-  await requireRole(["engineer", "admin"]);
+  const session = await requireRole(["engineer", "admin"]);
   const id = String(formData.get("id") ?? "");
   const specialistReason = String(formData.get("specialistReason") ?? "").trim();
   const repairNeeded = String(formData.get("repairNeeded") ?? "").trim();
@@ -56,13 +64,20 @@ export async function markVisitAction(formData: FormData) {
       repairNeeded: repairNeeded || null,
     },
   });
+  await logAction({
+    userId: session.user.id,
+    action: "incident.visit",
+    entityType: "incident",
+    entityId: id,
+    details: { specialistReason, repairNeeded },
+  });
   revalidatePath(`/incidents/${id}`);
   redirect(`/incidents/${id}`);
 }
 
 /** Перемещение карточки на канбан-доске (drag-and-drop) */
 export async function moveIncidentAction(id: string, toState: string) {
-  await requireRole(["engineer", "admin"]);
+  const session = await requireRole(["engineer", "admin"]);
   if (!["open", "in_repair", "resolved"].includes(toState)) return;
 
   const inc = await prisma.incident.findUnique({ where: { id } });
@@ -95,12 +110,19 @@ export async function moveIncidentAction(id: string, toState: string) {
           : { state: "open" },
     });
   }
+  await logAction({
+    userId: session.user.id,
+    action: "incident.move",
+    entityType: "incident",
+    entityId: id,
+    details: { from: inc.state, to: toState },
+  });
   revalidatePath("/incidents");
 }
 
 /** Инженер закрывает инцидент; камера возвращается в строй, если нет других открытых */
 export async function resolveIncidentAction(formData: FormData) {
-  await requireRole(["engineer", "admin"]);
+  const session = await requireRole(["engineer", "admin"]);
   const id = String(formData.get("id") ?? "");
   const notes = String(formData.get("notes") ?? "").trim();
 
@@ -118,6 +140,13 @@ export async function resolveIncidentAction(formData: FormData) {
         data: { isWorking: true, lastStatusChange: new Date() },
       });
     }
+  });
+  await logAction({
+    userId: session.user.id,
+    action: "incident.resolve",
+    entityType: "incident",
+    entityId: id,
+    details: notes ? { notes } : undefined,
   });
   revalidatePath(`/incidents/${id}`);
   revalidatePath("/incidents");
