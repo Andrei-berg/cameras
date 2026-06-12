@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 import IncidentStateBadge from "@/components/IncidentStateBadge";
+import KanbanBoard, { type KanbanCard } from "@/components/KanbanBoard";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +21,35 @@ function age(from: Date) {
   return { label, cls };
 }
 
-type SP = { state?: string; q?: string; district?: string; page?: string };
+type SP = { state?: string; q?: string; district?: string; page?: string; view?: string };
+
+const BOARD_LIMIT = 25;
+
+async function boardCards(
+  base: Prisma.IncidentWhereInput
+): Promise<KanbanCard[]> {
+  const fetch = (state: string, oldestFirst: boolean) =>
+    prisma.incident.findMany({
+      where: { ...base, state },
+      include: { camera: { include: { object: { include: { district: true } } } } },
+      orderBy: { detectedAt: oldestFirst ? "asc" : "desc" },
+      take: BOARD_LIMIT,
+    });
+  const [open, repair, resolved] = await Promise.all([
+    fetch("open", true),
+    fetch("in_repair", true),
+    fetch("resolved", false),
+  ]);
+  return [...open, ...repair, ...resolved].map((i) => ({
+    id: i.id,
+    objectName: i.camera.object.name,
+    cameraNumber: i.camera.cameraNumber,
+    district: i.camera.object.district.name,
+    reason: i.dispatcherReason,
+    detectedAt: i.detectedAt.toISOString(),
+    state: i.state,
+  }));
+}
 
 function href(sp: SP, patch: Partial<SP>) {
   const p = new URLSearchParams();
@@ -35,17 +66,24 @@ export default async function IncidentsPage({
 }) {
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
+  const isBoard = sp.view === "board";
+  const session = await auth.api.getSession({ headers: await headers() });
+  const canWork = ["engineer", "admin"].includes(session?.user.role ?? "");
 
   const where: Prisma.IncidentWhereInput = {};
   if (sp.state) where.state = sp.state;
   const objFilter: Prisma.ObjectWhereInput = {};
   if (sp.q?.trim()) objFilter.name = { contains: sp.q.trim(), mode: "insensitive" };
   if (sp.district) objFilter.districtId = sp.district;
-  if (Object.keys(objFilter).length) where.camera = { object: objFilter };
+  const baseWhere: Prisma.IncidentWhereInput = {};
+  if (Object.keys(objFilter).length) {
+    where.camera = { object: objFilter };
+    baseWhere.camera = { object: objFilter };
+  }
 
-  const [districts, counts, total, incidents] = await Promise.all([
+  const [districts, counts, total, incidents, cards] = await Promise.all([
     prisma.district.findMany({ orderBy: { name: "asc" } }),
-    prisma.incident.groupBy({ by: ["state"], _count: true }),
+    prisma.incident.groupBy({ by: ["state"], _count: true, where: baseWhere }),
     prisma.incident.count({ where }),
     prisma.incident.findMany({
       where,
@@ -56,8 +94,9 @@ export default async function IncidentsPage({
       // активные — старые сверху (приоритет на просроченное), закрытые — свежие
       orderBy: { detectedAt: sp.state && sp.state !== "resolved" ? "asc" : "desc" },
       skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
+      take: isBoard ? 1 : PAGE_SIZE,
     }),
+    isBoard ? boardCards(baseWhere) : Promise.resolve([]),
   ]);
 
   const countBy = Object.fromEntries(counts.map((c) => [c.state, c._count]));
@@ -119,7 +158,40 @@ export default async function IncidentsPage({
             Найти
           </button>
         </form>
+        <div className="flex gap-1 bg-surface border border-line rounded-lg p-1">
+          {[
+            { v: undefined, label: "Список" },
+            { v: "board", label: "Доска" },
+          ].map((t) => (
+            <Link
+              key={t.label}
+              href={href(sp, { view: t.v })}
+              className={`px-3 py-1.5 text-sm rounded transition-colors ${
+                isBoard === (t.v === "board")
+                  ? "bg-accent text-white font-medium"
+                  : "text-ink-soft hover:text-ink"
+              }`}
+            >
+              {t.label}
+            </Link>
+          ))}
+        </div>
       </div>
+
+      {isBoard && (
+        <KanbanBoard
+          cards={cards}
+          totals={{
+            open: countBy.open ?? 0,
+            in_repair: countBy.in_repair ?? 0,
+            resolved: countBy.resolved ?? 0,
+          }}
+          canWork={canWork}
+        />
+      )}
+
+      {!isBoard && (
+      <>
 
       <div className="bg-surface border border-line rounded-lg overflow-hidden">
         <table className="w-full text-sm">
@@ -191,6 +263,8 @@ export default async function IncidentsPage({
             )}
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );
