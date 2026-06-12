@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import IncidentStateBadge from "@/components/IncidentStateBadge";
 import StatusBadge from "@/components/StatusBadge";
 import { markVisitAction, resolveIncidentAction } from "../actions";
+import IncidentPrint from "@/components/IncidentPrint";
 
 export const dynamic = "force-dynamic";
 
@@ -42,9 +43,28 @@ export default async function IncidentPage({
 
   return (
     <div className="space-y-4 max-w-3xl">
-      <Link href="/incidents" className="text-sm text-accent hover:underline">
-        ← К инцидентам
-      </Link>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <Link href="/incidents" className="text-sm text-accent hover:underline">
+          ← К инцидентам
+        </Link>
+        <IncidentPrint
+          data={{
+            objectName: inc.camera.object.name,
+            district: inc.camera.object.district.name,
+            cameraNumber: inc.camera.cameraNumber,
+            controllerIp: inc.camera.controllerIp,
+            port: inc.camera.port,
+            model: inc.camera.model,
+            dispatcherReason: inc.dispatcherReason,
+            specialistReason: inc.specialistReason,
+            repairNeeded: inc.repairNeeded,
+            contractor: inc.contractor,
+            detectedAt: inc.detectedAt.toISOString(),
+            specialistVisit: inc.specialistVisit?.toISOString() ?? null,
+            reportedBy: inc.reportedBy.name,
+          }}
+        />
+      </div>
 
       <div className="bg-surface border border-line rounded-lg p-5">
         <div className="flex items-start justify-between gap-4 flex-wrap mb-1">
