@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import SignOutButton from "@/components/SignOutButton";
 import DashboardNav from "@/components/DashboardNav";
 import CommandPalette from "@/components/CommandPalette";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default async function DashboardLayout({
   children,
@@ -36,6 +37,7 @@ export default async function DashboardLayout({
           <span className="hidden md:inline text-xs text-ink-faint border border-line rounded px-1.5 py-0.5 font-mono">
             Ctrl K
           </span>
+          <ThemeToggle />
           <span className="text-sm text-ink-soft">{session.user.name}</span>
           <SignOutButton />
         </div>

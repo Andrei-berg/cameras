@@ -31,13 +31,14 @@ function Donut({ working, total }: { working: number; total: number }) {
   );
 }
 
-/** Цвет плитки участка: зелёный (всё работает) → красный (всё сломано) */
+/** Цвет плитки участка: зелёный (всё работает) → красный (всё сломано);
+ *  light-dark() переключается вместе с color-scheme темы */
 function tileStyle(share: number) {
   const hue = Math.round(120 * share);
   return {
-    background: `hsl(${hue} 55% 94%)`,
-    borderColor: `hsl(${hue} 45% 70%)`,
-    color: `hsl(${hue} 70% 24%)`,
+    background: `light-dark(hsl(${hue} 55% 94%), hsl(${hue} 45% 14%))`,
+    borderColor: `light-dark(hsl(${hue} 45% 70%), hsl(${hue} 45% 32%))`,
+    color: `light-dark(hsl(${hue} 70% 24%), hsl(${hue} 55% 68%))`,
   };
 }
 

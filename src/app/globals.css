@@ -22,6 +22,31 @@
   --color-warn-soft: #fdf3df;
 }
 
+:root {
+  color-scheme: light;
+}
+
+/* Тёмная тема — «ночная диспетчерская»: плоско, плотно, сигнальные цвета ярче.
+   Компоненты пишут только токены (bg-surface, text-ink…) — перекрашиваются сами. */
+html.dark {
+  color-scheme: dark;
+  --color-canvas: #0e141b;
+  --color-surface: #161e28;
+  --color-ink: #e6ebf1;
+  --color-ink-soft: #93a3b4;
+  --color-ink-faint: #5d6b7a;
+  --color-line: #243140;
+  --color-line-strong: #34465a;
+  --color-accent: #4d9fdc;
+  --color-accent-deep: #2f86c8;
+  --color-ok: #3fb950;
+  --color-ok-soft: #122618;
+  --color-fail: #f85149;
+  --color-fail-soft: #2e191b;
+  --color-warn: #f0a500;
+  --color-warn-soft: #2b2112;
+}
+
 body {
   background: var(--color-canvas);
   color: var(--color-ink);

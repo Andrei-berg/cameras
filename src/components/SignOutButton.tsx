@@ -10,7 +10,7 @@ export default function SignOutButton() {
         await signOut();
         router.push("/login");
       }}
-      className="text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded px-3 py-1 hover:bg-gray-50"
+      className="text-sm text-ink-soft hover:text-ink border border-line rounded px-3 py-1 hover:bg-canvas"
     >
       Выйти
     </button>

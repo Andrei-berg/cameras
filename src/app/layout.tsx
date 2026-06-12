@@ -26,9 +26,18 @@ export default function RootLayout({
   return (
     <html
       lang="ru"
+      suppressHydrationWarning
       className={`${golos.variable} ${jbMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {/* тема до первой отрисовки — без мигания; по умолчанию тёмная */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(localStorage.getItem("theme")!=="light")document.documentElement.classList.add("dark")}catch(e){}`,
+          }}
+        />
+        {children}
+      </body>
     </html>
   );
 }
