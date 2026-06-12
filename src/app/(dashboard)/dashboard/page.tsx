@@ -49,7 +49,8 @@ export default async function DashboardPage() {
   const role = session?.user.role ?? "dispatcher";
   const showIncidents = ["dispatcher", "engineer", "admin"].includes(role);
 
-  const [alerts, total, broken, openIncidents, inRepair, recentOpen, districts] =
+  const dayAgo = new Date(Date.now() - 24 * 3600_000);
+  const [alerts, total, broken, openIncidents, inRepair, recentOpen, districts, d24] =
     await Promise.all([
       getAlerts(role),
       prisma.camera.count(),
@@ -72,8 +73,14 @@ export default async function DashboardPage() {
         JOIN "Camera" c ON c."objectId" = o.id
         GROUP BY d.id, d.name
         ORDER BY (count(c.id) FILTER (WHERE NOT c."isWorking"))::float / count(c.id) DESC`,
+      Promise.all([
+        prisma.camera.count({ where: { isWorking: false, lastStatusChange: { gt: dayAgo } } }),
+        prisma.camera.count({ where: { isWorking: true, lastStatusChange: { gt: dayAgo } } }),
+        prisma.incident.count({ where: { detectedAt: { gt: dayAgo } } }),
+      ]),
     ]);
   const working = total - broken;
+  const [brokeToday, fixedToday, newIncidents] = d24;
 
   const stats = [
     { label: "Камер всего", value: total, href: "/cameras", cls: "border-l-accent" },
@@ -87,6 +94,21 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-5">
       <AlertBanners alerts={alerts} />
+
+      {/* дельты за 24 ч (паттерн Datadog): движение, а не абсолюты */}
+      <div className="flex items-center gap-2 font-mono text-xs flex-wrap">
+        <span className="text-ink-faint uppercase tracking-wider">за 24 ч:</span>
+        <span className={`px-2.5 py-1 rounded border ${brokeToday > 0 ? "bg-fail-soft text-fail border-fail/20" : "bg-surface text-ink-faint border-line"}`}>
+          +{brokeToday} сломалось
+        </span>
+        <span className={`px-2.5 py-1 rounded border ${fixedToday > 0 ? "bg-ok-soft text-ok border-ok/20" : "bg-surface text-ink-faint border-line"}`}>
+          −{fixedToday} починили
+        </span>
+        <span className={`px-2.5 py-1 rounded border ${newIncidents > 0 ? "bg-warn-soft text-warn border-warn/20" : "bg-surface text-ink-faint border-line"}`}>
+          {newIncidents} новых инцидентов
+        </span>
+      </div>
+
       <div className="bg-surface border border-line rounded-lg p-6 flex flex-wrap items-center gap-8">
         <Donut working={working} total={total} />
         <div className="flex-1 grid grid-cols-2 gap-3 min-w-64">

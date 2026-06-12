@@ -6,6 +6,7 @@ import SignOutButton from "@/components/SignOutButton";
 import DashboardNav from "@/components/DashboardNav";
 import CommandPalette from "@/components/CommandPalette";
 import ThemeToggle from "@/components/ThemeToggle";
+import StatusBar from "@/components/StatusBar";
 
 export default async function DashboardLayout({
   children,
@@ -20,9 +21,10 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const [brokenCount, openIncidents] = await Promise.all([
+  const [brokenCount, openIncidents, totalCams] = await Promise.all([
     prisma.camera.count({ where: { isWorking: false } }),
     prisma.incident.count({ where: { state: { not: "resolved" } } }),
+    prisma.camera.count(),
   ]);
 
   return (
@@ -53,7 +55,8 @@ export default async function DashboardLayout({
         </div>
       </header>
       <CommandPalette isAdmin={session.user.role === "admin"} />
-      <main className="p-6 max-w-screen-2xl mx-auto">{children}</main>
+      <main className="p-6 pb-12 max-w-screen-2xl mx-auto">{children}</main>
+      <StatusBar online={totalCams - brokenCount} total={totalCams} />
     </div>
   );
 }
