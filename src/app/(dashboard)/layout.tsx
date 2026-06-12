@@ -7,6 +7,7 @@ import DashboardNav from "@/components/DashboardNav";
 import CommandPalette from "@/components/CommandPalette";
 import ThemeToggle from "@/components/ThemeToggle";
 import StatusBar from "@/components/StatusBar";
+import GuidedTour from "@/components/GuidedTour";
 
 export default async function DashboardLayout({
   children,
@@ -39,24 +40,36 @@ export default async function DashboardLayout({
               мониторинг камер
             </span>
           </div>
-          <DashboardNav
-            isAdmin={session.user.role === "admin"}
-            brokenCount={brokenCount}
-            openIncidents={openIncidents}
-          />
+          <div data-tour="nav">
+            <DashboardNav
+              isAdmin={session.user.role === "admin"}
+              brokenCount={brokenCount}
+              openIncidents={openIncidents}
+            />
+          </div>
         </div>
         <div className="flex items-center gap-4">
-          <span className="hidden md:inline text-xs text-ink-faint border border-line rounded px-1.5 py-0.5 font-mono">
+          <span
+            data-tour="ctrlk"
+            className="hidden md:inline text-xs text-ink-faint border border-line rounded px-1.5 py-0.5 font-mono"
+          >
             Ctrl K
           </span>
-          <ThemeToggle />
+          <span data-tour="theme">
+            <ThemeToggle />
+          </span>
           <span className="text-sm text-ink-soft">{session.user.name}</span>
           <SignOutButton />
         </div>
       </header>
       <CommandPalette isAdmin={session.user.role === "admin"} />
-      <main className="p-6 pb-12 max-w-screen-2xl mx-auto">{children}</main>
-      <StatusBar online={totalCams - brokenCount} total={totalCams} />
+      <main data-tour="main" className="p-6 pb-12 max-w-screen-2xl mx-auto">
+        {children}
+      </main>
+      <div data-tour="statusbar">
+        <StatusBar online={totalCams - brokenCount} total={totalCams} />
+      </div>
+      <GuidedTour />
     </div>
   );
 }

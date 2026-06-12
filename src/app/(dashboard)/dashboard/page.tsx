@@ -4,7 +4,9 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import IncidentStateBadge from "@/components/IncidentStateBadge";
 import AlertBanners from "@/components/AlertBanners";
+import WhatNextBanner from "@/components/WhatNextBanner";
 import { getAlerts } from "@/lib/alerts";
+import { computeWhatNext } from "@/lib/what-next";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +84,43 @@ export default async function DashboardPage() {
   const working = total - broken;
   const [brokeToday, fixedToday, newIncidents] = d24;
 
+  // «что дальше» — мягкая подсказка по роли и состоянию данных (§9 gormost)
+  const [usersCount, geoPendingRows, lastImport, oldestOpenInc] = await Promise.all([
+    prisma.user.count(),
+    prisma.$queryRaw<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM (
+        SELECT o.id FROM "Object" o JOIN "Camera" c ON c."objectId" = o.id
+        GROUP BY o.id HAVING count(c.lat) = 0
+      ) t`,
+    prisma.actionLog.findFirst({
+      where: { action: "registry.import" },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    }),
+    role === "engineer" || role === "dispatcher"
+      ? prisma.incident.findFirst({
+          where: { state: "open" },
+          orderBy: { detectedAt: "asc" },
+          include: { camera: { include: { object: { select: { name: true } } } } },
+        })
+      : Promise.resolve(null),
+  ]);
+  const whatNext = computeWhatNext({
+    role,
+    usersCount,
+    geoPending: geoPendingRows[0]?.n ?? 0,
+    lastImportDays: lastImport
+      ? Math.floor((Date.now() - lastImport.createdAt.getTime()) / 86_400_000)
+      : null,
+    oldestOpen: oldestOpenInc
+      ? {
+          id: oldestOpenInc.id,
+          name: `${oldestOpenInc.camera.object.name} №${oldestOpenInc.camera.cameraNumber}`,
+          days: Math.floor((Date.now() - oldestOpenInc.detectedAt.getTime()) / 86_400_000),
+        }
+      : null,
+  });
+
   const stats = [
     { label: "Камер всего", value: total, href: "/cameras", cls: "border-l-accent" },
     { label: "В работе", value: working, href: "/cameras?status=working", cls: "border-l-ok text-ok" },
@@ -94,6 +133,7 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-5">
       <AlertBanners alerts={alerts} />
+      <WhatNextBanner next={whatNext} />
 
       {/* дельты за 24 ч (паттерн Datadog): движение, а не абсолюты */}
       <div className="flex items-center gap-2 font-mono text-xs flex-wrap">

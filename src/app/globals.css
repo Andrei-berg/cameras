@@ -53,6 +53,14 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Подсветка элемента в обучающем туре */
+.tour-target {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+  border-radius: 6px;
+  transition: outline-color 0.3s;
+}
+
 /* Пульс критичного бейджа в навигации (паттерн gormost chipPulse) */
 @keyframes chipPulseRed {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-fail) 45%, transparent); }
