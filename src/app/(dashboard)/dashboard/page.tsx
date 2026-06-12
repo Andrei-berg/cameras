@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import IncidentStateBadge from "@/components/IncidentStateBadge";
+import AlertBanners from "@/components/AlertBanners";
+import { getAlerts } from "@/lib/alerts";
 
 export const dynamic = "force-dynamic";
 
@@ -47,8 +49,9 @@ export default async function DashboardPage() {
   const role = session?.user.role ?? "dispatcher";
   const showIncidents = ["dispatcher", "engineer", "admin"].includes(role);
 
-  const [total, broken, openIncidents, inRepair, recentOpen, districts] =
+  const [alerts, total, broken, openIncidents, inRepair, recentOpen, districts] =
     await Promise.all([
+      getAlerts(role),
       prisma.camera.count(),
       prisma.camera.count({ where: { isWorking: false } }),
       prisma.incident.count({ where: { state: "open" } }),
@@ -83,6 +86,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-5">
+      <AlertBanners alerts={alerts} />
       <div className="bg-surface border border-line rounded-lg p-6 flex flex-wrap items-center gap-8">
         <Donut working={working} total={total} />
         <div className="flex-1 grid grid-cols-2 gap-3 min-w-64">

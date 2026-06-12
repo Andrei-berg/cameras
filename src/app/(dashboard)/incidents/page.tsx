@@ -10,6 +10,14 @@ const dateFmt = new Intl.DateTimeFormat("ru-RU", {
   day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit",
 });
 
+/** Возраст инцидента: < 24ч зелёный, < 3д янтарный, дольше — красный */
+function age(from: Date) {
+  const h = (Date.now() - from.getTime()) / 3600_000;
+  const label = h < 1 ? "< 1 ч" : h < 48 ? `${Math.round(h)} ч` : `${Math.round(h / 24)} д`;
+  const cls = h < 24 ? "text-ok" : h < 72 ? "text-warn" : "text-fail";
+  return { label, cls };
+}
+
 type SP = { state?: string; q?: string; district?: string; page?: string };
 
 function href(sp: SP, patch: Partial<SP>) {
@@ -45,7 +53,8 @@ export default async function IncidentsPage({
         camera: { include: { object: { include: { district: true } } } },
         reportedBy: { select: { name: true } },
       },
-      orderBy: { detectedAt: "desc" },
+      // активные — старые сверху (приоритет на просроченное), закрытые — свежие
+      orderBy: { detectedAt: sp.state && sp.state !== "resolved" ? "asc" : "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
     }),
@@ -119,7 +128,7 @@ export default async function IncidentsPage({
               <th className="px-4 py-2.5 font-medium">Объект · камера</th>
               <th className="px-3 py-2.5 font-medium">Участок</th>
               <th className="px-3 py-2.5 font-medium">Причина (диспетчер)</th>
-              <th className="px-3 py-2.5 font-medium">Выявлен</th>
+              <th className="px-3 py-2.5 font-medium">Давность</th>
               <th className="px-3 py-2.5 font-medium">Статус</th>
             </tr>
           </thead>
@@ -138,8 +147,21 @@ export default async function IncidentsPage({
                 <td className="px-3 py-2 text-ink-soft max-w-md truncate">
                   {inc.dispatcherReason ?? "—"}
                 </td>
-                <td className="px-3 py-2 font-mono text-xs text-ink-soft whitespace-nowrap">
-                  {dateFmt.format(inc.detectedAt)}
+                <td className="px-3 py-2 whitespace-nowrap">
+                  {inc.state === "resolved" ? (
+                    <span className="font-mono text-xs text-ink-faint">
+                      {dateFmt.format(inc.detectedAt)}
+                    </span>
+                  ) : (
+                    <>
+                      <span className={`font-mono font-semibold ${age(inc.detectedAt).cls}`}>
+                        {age(inc.detectedAt).label}
+                      </span>
+                      <span className="block font-mono text-[10px] text-ink-faint">
+                        {dateFmt.format(inc.detectedAt)}
+                      </span>
+                    </>
+                  )}
                 </td>
                 <td className="px-3 py-2">
                   <IncidentStateBadge state={inc.state} />

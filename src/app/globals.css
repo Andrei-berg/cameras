@@ -53,6 +53,15 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Пульс критичного бейджа в навигации (паттерн gormost chipPulse) */
+@keyframes chipPulseRed {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-fail) 45%, transparent); }
+  50% { box-shadow: 0 0 0 4px transparent; }
+}
+.chip-pulse-red {
+  animation: chipPulseRed 2.4s ease-in-out infinite;
+}
+
 /* Тонкая техническая сетка на фоне — атмосфера диспетчерского пульта */
 .canvas-grid {
   background-image: linear-gradient(var(--color-line) 1px, transparent 1px),

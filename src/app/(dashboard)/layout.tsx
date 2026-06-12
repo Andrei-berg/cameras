@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import prisma from "@/lib/prisma";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import SignOutButton from "@/components/SignOutButton";
@@ -19,6 +20,11 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
+  const [brokenCount, openIncidents] = await Promise.all([
+    prisma.camera.count({ where: { isWorking: false } }),
+    prisma.incident.count({ where: { state: { not: "resolved" } } }),
+  ]);
+
   return (
     <div className="min-h-screen bg-canvas">
       <header className="bg-surface border-b border-line px-6 py-2.5 flex items-center justify-between sticky top-0 z-20">
@@ -31,7 +37,11 @@ export default async function DashboardLayout({
               мониторинг камер
             </span>
           </div>
-          <DashboardNav isAdmin={session.user.role === "admin"} />
+          <DashboardNav
+            isAdmin={session.user.role === "admin"}
+            brokenCount={brokenCount}
+            openIncidents={openIncidents}
+          />
         </div>
         <div className="flex items-center gap-4">
           <span className="hidden md:inline text-xs text-ink-faint border border-line rounded px-1.5 py-0.5 font-mono">
