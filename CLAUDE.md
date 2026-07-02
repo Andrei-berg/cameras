@@ -1,7 +1,7 @@
 # cameras — мониторинг видеокамер ГБУ «ГОРМОСТ»
 
-Прод: https://cameras-nu.vercel.app · push в `main` (remote **github**) = автодеплой.
-GitLab-remote (`origin`) НЕ используется — не пушить, не трогать.
+Прод: https://cameras-nu.vercel.app · push в `main` (remote **origin** → github.com/Andrei-berg/cameras) = автодеплой.
+Других remote нет.
 
 ## Перед коммитом — обязательно
 ```
@@ -19,9 +19,9 @@ Prisma-клиент — генерат: если `src/generated/prisma` отсу
 - **Тесты.** Чистую логику (правила, расчёты) покрывать Vitest-тестами рядом в `__tests__/`
   (образец — `lib/alerts-rules.ts` + `__tests__/`). Перед коммитом весь набор должен проходить.
   Не мокать то, что можно вызвать напрямую как чистую функцию.
-- **Git.** Работаем в `main` (remote **github**), push = автодеплой — коммить/пушь только по явной
-  просьбе и только после `tsc + test + build`. Атомарные коммиты, сообщения по-русски в стиле истории
-  (`feat:`, `fix:`, `chore:`). Remote `origin` (GitLab) НЕ трогать.
+- **Git.** Работаем в `main` (remote **origin** → github.com/Andrei-berg/cameras), push = автодеплой —
+  коммить/пушь только по явной просьбе и только после `tsc + test + build`. Атомарные коммиты,
+  сообщения по-русски в стиле истории (`feat:`, `fix:`, `chore:`).
 
 ## Архитектура
 - Серверные компоненты + Prisma + server actions. Никакого RPC-слоя и клиентского фетча данных,
