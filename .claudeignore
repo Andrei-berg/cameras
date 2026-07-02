@@ -1,0 +1,19 @@
+# Зависимости и артефакты сборки — не индексировать
+node_modules/
+.next/
+.git/
+
+# Секреты
+.env
+.env.*
+.mcp.json
+
+# Редакторы
+.vscode/
+.idea/
+
+# Логи и кэш
+*.log
+.vercel/
+.cache/
+*.tsbuildinfo
